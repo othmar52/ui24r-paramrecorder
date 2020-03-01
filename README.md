@@ -7,11 +7,11 @@ Owners of the **Soundcraft Ui24R** digital mixing console who makes use of the *
 
 ## why?
 The hardware built-in multitrack recording feature does not apply any of the thousands possible mixer parameters.  
-for example: muted channels thet does not end up in the master mix does not represent silence in the recorded file of the specific channel  
+for example: muted channels that does not end up in the master mix does not represent silence in the recorded file of the specific channel  
 actually every audio signal on each input gets recorded as is - without any modification  
 
 
-This script is an approach to
+This script is a quick & dirty approach to
   * connect to the mixer's websocket
   * grab all parameters that exists as an initial state
   * as soon as multitrack recording is started write every parameter change to a textfile

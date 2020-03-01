@@ -4,33 +4,43 @@
 
 import websocket
 import re
+import os
 from pathlib import Path
 try:
     import thread
 except ImportError:
     import _thread as thread
 import time
+from datetime import datetime
 
+ipAdress = "10.0.1.124"
 dataContainer = {}
 armed = False
-recDir = None
+outputDir = None
+recFile = None
 recStartTime = 0
 recStateRemote = 0
 sessionName = ""
 
 def on_message(ws, message):
+    # we often get multiline messages. process each line separately
     for line in message.split('\n'):
         if line == "2::":
+            # skip useless messages
             continue
+
         if line[:4] == "3:::":
-            # remove line prefix
+            # remove unneeded prefix of each websocket message in case it exists
             line = line[4:]
 
         if line[:4] == "RTA^" or line[:4] == "VU2^" or line[:4] == "VUA^":
+            # skip all those realtime data thats only needed for visualizing audio
             continue
+
 
         match = re.match('^SET([DS])\^([^\^]*)\^(.*)$', line)
         if not match:
+            # @TODO: do we need some other stuff that gets dropped here?
             continue
 
         handleParam(match.group(2), castValue( match.group(1),  match.group(3) ))
@@ -86,16 +96,58 @@ def handleParam(paramName, paramValue):
     if armed == True and recStateRemote == 0:
         recStop()
 
+    if armed == True:
+        recordParamChange(paramName, paramValue)
+
 
 
 def recStart():
-    global armed
+    global armed, sessionName, recFile
 
-    #Path(os.path.dirname(os.path.abspath(__file__)))
+    
 
-
-    armed = True
+    # include current second in recording to avoid conflicts
+    recFile = Path(
+        "%s/recordings/%s-recsession-%s.txt" % (
+            os.path.dirname(os.path.abspath(__file__)),
+            datetime.today().strftime('%Y.%m.%d--%H.%M.%S'),
+            sessionName
+        )
+    )
+    # dump all data to have initial param values
+    dumpAllToFile()
     print("recStart")
+    armed = True
+
+
+def dumpAllToFile():
+    global dataContainer, recFile
+
+    f = recFile.open("a")
+    for key, value in dataContainer.items():
+        f.write("0 %s %s\n" % (key, value))
+
+    f.close()
+
+def recordParamChange(paramName, paramValue):
+    global recFile
+    if isBlacklisted(paramName):
+        return
+    with recFile.open("a") as f:
+        f.write("%s %s %s\n" % (getRelativeTime(), paramName, paramValue))
+
+def isBlacklisted(paramName):
+    blackList = [
+        "var.mtk.bufferfill",
+        "var.mtk.freespace",
+        "var.mtk.rec.time"
+    ]
+    return paramName in blackList
+
+def getRelativeTime():
+    global recStartTime
+    return (float(round(time.time() * 1000)) - recStartTime) / 1000
+
 
 def recStop():
     global armed, recStartTime
@@ -111,24 +163,20 @@ def on_close(ws):
 
 def on_open(ws):
     def run(*args):
-        #for i in range(3):
-        #    time.sleep(1)
-        #    ws.send("3:::ALIVE")
         while True:
             ws.send("3:::ALIVE")
             time.sleep(1)
-            #print ( dataContainer )
-        #time.sleep(1)
-        #ws.close()
+
         print("thread terminating...")
     thread.start_new_thread(run, ())
 
 
 if __name__ == "__main__":
-    #websocket.enableTrace(True)
-    ws = websocket.WebSocketApp("ws://10.0.1.124/socket.io/1/websocket",
-                              on_message = on_message,
-                              on_error = on_error,
-                              on_close = on_close)
+    ws = websocket.WebSocketApp(
+        "ws://%s/socket.io/1/websocket" % ipAdress,
+        on_message = on_message,
+        on_error = on_error,
+        on_close = on_close
+    )
     ws.on_open = on_open
     ws.run_forever()
