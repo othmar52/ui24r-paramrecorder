@@ -75,7 +75,7 @@ def runStuff():
     marry audio recording directory with paramsRecordings file
 '''
 def findAndProcessInputPairs():
-    global paramRecordingsDir, audioRecordingsDir, paramRecFile, applyFilterFile, outputRootDir, outputDir
+    global allParams, paramRecordingsDir, audioRecordingsDir, paramRecFile, applyFilterFile, outputRootDir, outputDir
 
 
     allRecoringDirectories = [f.path for f in os.scandir(str(audioRecordingsDir)) if f.is_dir()]
@@ -106,11 +106,13 @@ def findAndProcessInputPairs():
                 continue
 
             paramRecFile = Path(paramRecordingFile)
+            allParams = getFileContent(str(paramRecFile)).split('\n')
 
             audioInputFile = str(Path(trackDir + '/' + audioFileName))
             audioOutputFile = Path("%s/%s" % (str(outputDir), audioFileName))
 
             filteredParams = grabVolumeParametersForInput(channelIndex)
+
             filterLines = convertVolumeParamsToFilterArguments(filteredParams, channelIndex)
 
             applyFilterFile.write_text(',\n'.join(filterLines))
@@ -299,7 +301,7 @@ def applyFilter(inputPath, filterParamsPath, outputPath):
         '-i', str(inputPath), '-filter_complex_script', str(filterParamsPath),
         str(outputPath)
     ]
-    generalCmd(cmd, 'apply filter')
+    generalCmd(cmd, 'apply filter', True)
 
 
 if __name__ == "__main__":

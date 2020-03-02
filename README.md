@@ -20,5 +20,5 @@ The script `ui24r-paramrecorder.py` is a quick & dirty approach to
   * as soon as the multitrack recording stops also stop to persist incoming websocket messages
 
 based on this textfile it's possible to apply some post processing (especially muting and volume changes) of the audiofiles to achieve a better representation of what was going on in the sound system during recording  
-a partly working approach already exists in `applyParamsToWav.py`
+a partly working approach without any error handling already exists in `applyParamsToWav.py`
 
