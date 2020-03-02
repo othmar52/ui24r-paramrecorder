@@ -197,7 +197,7 @@ def convertVolumeParamsToFilterArguments(filteredParams, currentInputIndex):
                 "volume=enable='between(t,%s,%s)':volume='%s':eval=frame" % (
                     lastPersistedEndtime,
                     param.time,
-                    lastCheckedVolume # float2Db(lastCheckedVolume)
+                    convertVolumeValue(lastCheckedVolume)
                 )
             )
             lastPersistedEndtime = param.time
@@ -206,20 +206,31 @@ def convertVolumeParamsToFilterArguments(filteredParams, currentInputIndex):
         lastCheckedVolume = volumeToCheck
 
     # apply the very last line until end position of the audio file.
-    # as endtime we use an hopefully out-of-range value of 100000 seconds
-    # in case this gets changed/invalid in ffmpeg in future we have to
-    # determine the actual end position/duration of the audio file
-    #duration = detectDuration(inputFile)
-    # alternatively we can rely on .uirecsession:lengthSeconds
-    duration = 100000
     filterLines.append(
         "volume=enable='between(t,%s,%s)':volume='%s':eval=frame" % (
             lastPersistedEndtime,
-            duration,
-            lastCheckedVolume # float2Db(lastCheckedVolume)
+            getEndPosition(),
+            convertVolumeValue(lastCheckedVolume)
         )
     )
     return filterLines
+
+'''
+    WARNING: current return value is FAKE
+    @see comments of the 3 possibilities
+'''
+def getEndPosition():
+    # possibility 1: read duration from input file via ffprobe
+    # duration = detectDuration(inputFile)
+
+    # possibility 2: read duration from json created by Ui24R
+    # duration = parse file .uirecsession for key "lengthSeconds"
+
+    # possibility 3: return a very high number
+    # as an out-of-range value seems to be no problem for ffmpeg go with this fastest approach
+    # hopefully 100000 seconds is higher than the actual length of the audio file
+    return 100000
+
 
 '''
     currently not used
@@ -271,8 +282,17 @@ def getFileContent(pathAndFileName):
         return data
 
 
-def float2Db(inputValue):
-    return math.log1p(float(inputValue))
+'''
+    @TODO check if we have to tweak the value (between 0.0 and 1.0) provided by the Ui24R for ffmpeg's volume filter
+    @see https://ffmpeg.org/ffmpeg-filters.html#volume
+'''
+def convertVolumeValue(inputValue):
+
+    zeroDB = .7647058823529421
+    newValue = float(inputValue) * ( 1/zeroDB)
+    return newValue
+    #return math.log1p(float(inputValue))
+
 
 def generalCmd(cmdArgsList, description, readStdError = False):
     logging.info("starting %s" % description)
