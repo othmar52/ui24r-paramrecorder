@@ -95,6 +95,10 @@ def findAndProcessInputPairs():
 
         trackConfigJson = json.loads(getFileContent( str(trackConfigFile) ) )
 
+        # used for possible mono/stereo merge
+        previousChannelIndex = -1
+        previousAudioFileName = ""
+
         for key, channelString in enumerate(trackConfigJson["mapping"]):
             channelIndex = int(re.sub("[^0-9]", "", channelString))
             audioFileName = trackConfigJson["files"][key] + trackConfigJson["ext"]
@@ -119,8 +123,69 @@ def findAndProcessInputPairs():
 
             applyFilter(audioInputFile, applyFilterFile, audioOutputFile)
 
+            checkMergeMonoToStereo(channelIndex, previousChannelIndex, audioFileName, previousAudioFileName)
+
+            previousChannelIndex = channelIndex
+            previousAudioFileName = audioFileName
 
 
+def checkMergeMonoToStereo(channelIndex, previousChannelIndex, audioFileName, previousAudioFileName):
+    global allParams
+
+    if not convertMonoToStereo:
+        # disabled by onfiguration. nothing to do
+        return
+
+    if previousChannelIndex == -1:
+        # we havn't processed mergable files yet
+        return
+
+    if channelIndex - previousChannelIndex != 1:
+        # Ui24R can only activate stereoLink on channels next to each other
+        return
+
+    if previousChannelIndex % 2 != 0:
+        # Ui24R can only have linked even channelIndex as [LEFT] to odd channelIndex [RIGHT] (index starts from 0)
+        return
+
+    if not stereoLinkEnabled(previousChannelIndex, channelIndex):
+        # stereoLink settings has not been enabled during param recording
+        return
+
+    # ok, fire up ffmpeg for merging
+    leftChannelFile = Path("%s/%s" % (str(outputDir), previousAudioFileName))
+    rightChannelFile = Path("%s/%s" % (str(outputDir), audioFileName))
+    stereoTargetFile = Path("%s/%s.%s.stereo.wav" % (str(outputDir), previousAudioFileName, audioFileName))
+    mergeMonoToStereo(leftChannelFile, rightChannelFile, stereoTargetFile)
+
+    # delete single channel files
+    os.unlink(str(leftChannelFile))
+    os.unlink(str(rightChannelFile))
+
+
+
+
+def stereoLinkEnabled(leftIndex, rightIndex):
+
+    leftChannelStereoLink = False
+    rightChannelStereoLink = False
+
+    paramNameWhitelist = [
+        "i.%i.stereoIndex" % leftIndex,
+        "i.%i.stereoIndex" % rightIndex
+    ]
+    for paramLine in allParams:
+        paramList = paramLine.split(' ' ,2)
+        if len(paramList) != 3 or paramList[1] not in paramNameWhitelist:
+            continue
+
+        if paramList[1] == "i.%i.stereoIndex" % leftIndex and paramList[2] == "0":
+            leftChannelStereoLink = True
+
+        if paramList[1] == "i.%i.stereoIndex" % rightIndex and paramList[2] == "1":
+            rightChannelStereoLink = True
+
+    return leftChannelStereoLink and rightChannelStereoLink
 
 def searchParamRecordingsFileNameForSession(sessionKey):
     global paramRecordingsDir
@@ -258,8 +323,6 @@ def detectDuration(filePath):
     @return list a list of Parameter instances
 '''
 def grabVolumeParametersForInput(inputIndex):
-    global allParams
-
     paramsForInput = []
 
     # define all params that affects our audio processing for this single input
@@ -322,6 +385,15 @@ def applyFilter(inputPath, filterParamsPath, outputPath):
     ]
     generalCmd(cmd, 'apply filter', True)
 
+def mergeMonoToStereo(inputPathLeft, inputPathRight, outputPath):
+    # TODO: keep bitrate as configured in .uirecsession file or read from input file
+    cmd = [
+        'ffmpeg', '-hide_banner', '-v', 'quiet', '-stats', '-y',
+        '-i', str(inputPathLeft), '-i', str(inputPathRight),
+        '-filter_complex', '[0:a][1:a]amerge', '-c:a', 'pcm_s16le', '-ar', '44100',
+        str(outputPath)
+    ]
+    generalCmd(cmd, 'merge mono to stereo', True)
 
 if __name__ == "__main__":
     runStuff()
