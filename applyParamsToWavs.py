@@ -140,13 +140,15 @@ def guessBestParamRecordingsFile(foundFiles):
         return None
 
     if len(foundFiles) == 1:
-        #nothing to guess 
+        # nothing to guess. its very likely that we found the matching param recording
         return foundFiles.pop()
 
     # TODO: theoretically we can have multiple paramRecordings with this key as its a number between 0000 and 9999
     #   we are able to compare fileName with "i.<index>.name" and/or audio file duration with paramRecording duration
     #   probably the very last file is the latest and most relevant file?
-    # but for now give a shit on this edge case and return the last found file ( TODO: is sorting correct?)
+
+    # for now give a shit on this edge case and return the last found file
+    foundFiles.sort()
     return foundFiles.pop()
 
 
@@ -244,9 +246,6 @@ def detectDuration(filePath):
     ]
     processStdOut = generalCmd(cmd, 'detect duration')
     return float(processStdOut.strip())
-
-
-
 
 '''
     filterParamsForInput()
