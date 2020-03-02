@@ -81,11 +81,10 @@ def handleParam(paramName, paramValue):
     if armed == False and sessionName != "" and recStateRemote == 1 and recStartTime > 0:
         recStart()
 
-    if armed == True and recStateRemote == 0:
-        recStop()
-
     if armed == True:
         recordParamChange(paramName, paramValue)
+        if recStateRemote == 0:
+            recStop()
 
 
 
