@@ -93,7 +93,7 @@ def recStart():
 
     # include current second in filename to avoid conflicts
     recFile = Path(
-        "%s/recordings/%s-recsession-%s.txt" % (
+        "%s/recordings/%s-recsession-%s.uiparamrecording.txt" % (
             os.path.dirname(os.path.abspath(__file__)),
             datetime.today().strftime('%Y.%m.%d--%H.%M.%S'),
             sessionName

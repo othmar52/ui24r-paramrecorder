@@ -126,7 +126,7 @@ def searchParamRecordingsFileNameForSession(sessionKey):
     global paramRecordingsDir
     return guessBestParamRecordingsFile(
         glob.glob(
-            "%s/*-recsession-%s.txt" % (
+            "%s/*-recsession-%s.uiparamrecording.txt" % (
                 str(paramRecordingsDir),
                 sessionKey
             )

@@ -22,13 +22,13 @@ The script `ui24r-paramrecorder.py` is a quick & dirty approach to
 
 
 **example of the text based recording**  
-`recordings/2020.03.02--14.56.11-recsession-0142.txt`  
-`milisecond` `paramName` `paramValue`
+`recordings/2020.03.02--14.56.11-recsession-0141.uiparamrecording.txt`  
+each line holds `second` `paramName` `paramValue`
 ```
 0 i.0.fx.1.mute 0
-...
-  about 6700 initial mixer parameters with milisecond 0
-...
+   ...
+      about 6700 initial mixer parameters with second 0
+   ...
 0 i.15.aux.2.value 0
 1.851 var.mtk.rec.session 0141
 1.852 var.mtk.rec.busy 0
