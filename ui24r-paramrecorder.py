@@ -16,7 +16,6 @@ from datetime import datetime
 ipAdress = "10.0.1.124"
 dataContainer = {}
 armed = False
-outputDir = None
 recFile = None
 recStartTime = 0
 recStateRemote = 0
@@ -61,34 +60,23 @@ def castValue(valueType, value):
 #
 # only when we have all of these we can start the recording
 # but we have to apply an offset (timestamp correction) of x seconds int the past as soon as we have everything we need for recording
-
-
-
 def handleParam(paramName, paramValue):
     global armed, sessionName, recStateRemote, recStartTime, dataContainer
     dataContainer[ paramName ] = paramValue
 
-    #if paramName in [ "var.mtk.rec.currentState", "var.mtk.rec.time", "var.mtk.rec.session"]:
-    #    print("               %i %s %s" % (int(round(time.time() * 1000)), paramName, paramValue))
-
     if paramName == "var.mtk.rec.currentState":
         recStateRemote = paramValue
-        print( "SET recStateRemote to %i " % recStateRemote)
         if recStateRemote == 1:
             recStartTime = 0
-            print( "SET recStartTime to %i " % recStartTime )
 
     if paramName == "var.mtk.rec.session":
         sessionName = paramValue
-        print( "SET sessionName to %s " % sessionName)
 
     # too bad we do not have a session name after first second of recording
     # so apply the offset into the past
     if paramName == "var.mtk.rec.time" and recStartTime == 0:
         if recStateRemote == 1:
             recStartTime = int(round(time.time() * 1000)) - (1000 * paramValue)
-            print( "SET recStartTime to %i " % recStartTime )
-
 
     if armed == False and sessionName != "" and recStateRemote == 1 and recStartTime > 0:
         recStart()
@@ -104,9 +92,7 @@ def handleParam(paramName, paramValue):
 def recStart():
     global armed, sessionName, recFile
 
-    
-
-    # include current second in recording to avoid conflicts
+    # include current second in filename to avoid conflicts
     recFile = Path(
         "%s/recordings/%s-recsession-%s.txt" % (
             os.path.dirname(os.path.abspath(__file__)),
@@ -117,6 +103,9 @@ def recStart():
     # dump all data to have initial param values
     dumpAllToFile()
     print("recStart")
+
+    # theoretically we have had an untracked param change during the last few miliseconds
+    # @TODO: is it necessary to collect those and append?
     armed = True
 
 
@@ -171,6 +160,7 @@ def on_open(ws):
     thread.start_new_thread(run, ())
 
 
+# @TODO: handle connect error
 if __name__ == "__main__":
     ws = websocket.WebSocketApp(
         "ws://%s/socket.io/1/websocket" % ipAdress,
