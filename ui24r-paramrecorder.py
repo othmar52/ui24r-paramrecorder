@@ -3,6 +3,7 @@
 # pip install websocket-client
 
 import websocket
+import logging
 import re
 import os
 from pathlib import Path
@@ -21,7 +22,11 @@ recStartTime = 0
 recStateRemote = 0
 sessionName = ""
 
-def on_message(ws, message):
+def main():
+    logging.basicConfig(level=logging.INFO)
+    createWebSocket(ipAdress)
+
+def onSocketMessage(ws, message):
     # we often get multiline messages. process each line separately
     for line in message.split('\n'):
         if line == "2::":
@@ -101,7 +106,7 @@ def recStart():
     )
     # dump all data to have initial param values
     dumpAllToFile()
-    print("recStart")
+    logging.info("started recording to file:\n %s" % str(recFile))
 
     # theoretically we have had an untracked param change during the last few miliseconds
     # @TODO: is it necessary to collect those and append?
@@ -121,6 +126,8 @@ def recordParamChange(paramName, paramValue):
     global recFile
     if isBlacklisted(paramName):
         return
+
+    logging.debug("recording param: %s -> %s" % (paramName, paramValue))
     with recFile.open("a") as f:
         f.write("%s %s %s\n" % (getRelativeTime(), paramName, paramValue))
 
@@ -139,16 +146,18 @@ def recStop():
     global armed, recStartTime
     armed = False
     recStartTime = 0
-    print("recStop")
+    logging.info("recording stopped")
 
-def on_error(ws, error):
-    print(error)
+def onSocketError(ws, error):
+    logging.critical("socket error %s" % error)
 
-def on_close(ws):
+def onSocketClose(ws):
     print("### closed ###")
 
-def on_open(ws):
+def onSocketOpen(ws):
+    logging.info("connecting to %s" % ws.url)
     def run(*args):
+        logging.info("connection established")
         while True:
             ws.send("3:::ALIVE")
             time.sleep(1)
@@ -158,12 +167,15 @@ def on_open(ws):
 
 
 # @TODO: handle connect error
-if __name__ == "__main__":
+def createWebSocket(ip):
     ws = websocket.WebSocketApp(
-        "ws://%s/socket.io/1/websocket" % ipAdress,
-        on_message = on_message,
-        on_error = on_error,
-        on_close = on_close
+        "ws://%s/socket.io/1/websocket" % ip,
+        on_message = onSocketMessage,
+        on_error = onSocketError,
+        on_close = onSocketClose
     )
-    ws.on_open = on_open
+    ws.on_open = onSocketOpen
     ws.run_forever()
+
+if __name__ == "__main__":
+    main()
