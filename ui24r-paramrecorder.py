@@ -61,7 +61,7 @@ def castValue(valueType, value):
 # only when we have all of these we can start the recording
 # but we have to apply an offset (timestamp correction) of x seconds int the past as soon as we have everything we need for recording
 def handleParam(paramName, paramValue):
-    global armed, sessionName, recStateRemote, recStartTime, dataContainer
+    global sessionName, recStateRemote, recStartTime, dataContainer
     dataContainer[ paramName ] = paramValue
 
     if paramName == "var.mtk.rec.currentState":
@@ -89,7 +89,7 @@ def handleParam(paramName, paramValue):
 
 
 def recStart():
-    global armed, sessionName, recFile
+    global armed, recFile
 
     # include current second in filename to avoid conflicts
     recFile = Path(
@@ -109,7 +109,7 @@ def recStart():
 
 
 def dumpAllToFile():
-    global dataContainer, recFile
+    global recFile
 
     f = recFile.open("a")
     for key, value in dataContainer.items():
@@ -127,13 +127,11 @@ def recordParamChange(paramName, paramValue):
 def isBlacklisted(paramName):
     blackList = [
         "var.mtk.bufferfill",
-        "var.mtk.freespace",
-        "var.mtk.rec.time"
+        "var.mtk.freespace"
     ]
     return paramName in blackList
 
 def getRelativeTime():
-    global recStartTime
     return (float(round(time.time() * 1000)) - recStartTime) / 1000
 
 

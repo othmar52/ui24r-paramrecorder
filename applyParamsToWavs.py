@@ -133,11 +133,11 @@ def checkMergeMonoToStereo(channelIndex, previousChannelIndex, audioFileName, pr
     global allParams
 
     if not convertMonoToStereo:
-        # disabled by onfiguration. nothing to do
+        # disabled by configuration. nothing to do
         return
 
     if previousChannelIndex == -1:
-        # we havn't processed mergable files yet
+        # we havn't processed mergeable files yet
         return
 
     if channelIndex - previousChannelIndex != 1:
