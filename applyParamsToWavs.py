@@ -347,12 +347,38 @@ def getFileContent(pathAndFileName):
 '''
     @TODO check if we have to tweak the value (between 0.0 and 1.0) provided by the Ui24R for ffmpeg's volume filter
     @see https://ffmpeg.org/ffmpeg-filters.html#volume
+
+    based on some analysis and measurings https://mycurvefit.com came to this formula
+    y = 1932499 + (0.2518983 − 1932499)/(1 + (x/13.36283)^5.177893)
+
+    measurings
+    ---------------------------------------------------------------------
+     fader value (x)     |  value of ffmpeg's volume filter to apply (y)
+    ---------------------------------------------------------------------
+    1                    | 3.181
+    0.9566074950690335   | 2.461
+    0.897435897435897    | 1.815
+    0.857988165680473    | 1.535
+    0.808678500986193    | 1.22
+    0.7647058823529421   | 1
+    0.7120315581854044   | 0.8
+    0.6469428007889547   | 0.597
+    0.5877712031558187   | 0.441
+    0.5069033530571994   | 0.254
+    0.4240631163708088   | 0.158
+    0.345167652859960    | 0.078
+    0.22879684418145974  | 0.02
+    0.12031558185404356  | 0
+    0.061143984220907464 | 0
+    ---------------------------------------------------------------------
+
+
 '''
 def convertVolumeValue(inputValue):
-
-    zeroDB = .7647058823529421
-    newValue = float(inputValue) * ( 1/zeroDB)
-    return newValue
+    return 1932499 + (0.2518983-1932499)/(1 + (float(inputValue)/13.36283)**5.177893)
+    #zeroDB = .7647058823529421
+    #newValue = float(inputValue) * ( 1/zeroDB)
+    #return newValue
     #return math.log1p(float(inputValue))
 
 
