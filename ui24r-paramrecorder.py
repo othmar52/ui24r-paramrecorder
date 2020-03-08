@@ -14,7 +14,7 @@ except ImportError:
 import time
 from datetime import datetime
 
-ipAdress = "10.0.1.124"
+ipAdress = "10.0.1.126"
 dataContainer = {}
 armed = False
 recFile = None
