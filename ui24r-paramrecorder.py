@@ -1,8 +1,10 @@
 #!/bin/env python3
 
 # pip install websocket-client
+# pip install websockets
 
 import websocket
+import threading
 import logging
 import re
 import os
@@ -14,7 +16,11 @@ except ImportError:
 import time
 from datetime import datetime
 
-ipAdress = "10.0.1.126"
+import asyncio
+import websockets
+import argparse
+import sys
+
 dataContainer = {}
 armed = False
 recFile = None
@@ -22,11 +28,45 @@ recStartTime = 0
 recStateRemote = 0
 sessionName = ""
 
-def main():
-    logging.basicConfig(level=logging.INFO)
-    createWebSocket(ipAdress)
 
-def onSocketMessage(ws, message):
+
+def main():
+    mixerIp = None
+    socketIp = None
+    socketPort = None
+
+    parser = argparse.ArgumentParser(description='param recorder for Soundcraft Ui24r mixing console')
+    parser.add_argument('mixerip', type=str, help='IP or domain name of the Ui24r')
+    parser.add_argument('--socketIp', type=str, help='IP or domain of optional created websocket')
+    parser.add_argument('--socketPort', type=int, help='port of optional created websocket')
+    args = parser.parse_args()
+
+    tasks = []
+    if args.socketIp != None and args.socketPort != None:
+        tasks.append(
+            createSocketAndServe(args.socketIp, args.socketPort),
+        )
+    elif args.socketIp != None or args.socketPort != None:
+        parser.print_help()
+        sys.exit()
+    
+    tasks.append(createMixerWebSocket(args.mixerip))
+    logging.basicConfig(level=logging.INFO)
+    asyncio.get_event_loop().run_until_complete(asyncio.wait(tasks))
+    asyncio.get_event_loop().run_forever()
+
+
+async def recordingStatus(websocket, path):
+    while True:
+        await websocket.send('{armed: %s}' % str(armed).lower())
+        await asyncio.sleep(1)
+
+async def createSocketAndServe(socketIp, socketPort):
+    logging.info("creating server. listening on port %s" % str(socketPort))
+    ws_server = await websockets.serve(recordingStatus, socketIp, socketPort)
+
+def onMixerSocketMessage(ws, message):
+    #print(message)
     # we often get multiline messages. process each line separately
     for line in message.split('\n'):
         if line == "2::":
@@ -47,7 +87,7 @@ def onSocketMessage(ws, message):
             # @TODO: do we need some other stuff that gets dropped here?
             continue
 
-        handleParam(match.group(2), castValue( match.group(1),  match.group(3) ))
+        handleMixerParam(match.group(2), castValue( match.group(1),  match.group(3) ))
 
 
 def castValue(valueType, value):
@@ -65,7 +105,7 @@ def castValue(valueType, value):
 #
 # only when we have all of these we can start the recording
 # but we have to apply an offset (timestamp correction) of x seconds int the past as soon as we have everything we need for recording
-def handleParam(paramName, paramValue):
+def handleMixerParam(paramName, paramValue):
     global sessionName, recStateRemote, recStartTime, dataContainer
     dataContainer[ paramName ] = paramValue
 
@@ -148,13 +188,13 @@ def recStop():
     recStartTime = 0
     logging.info("recording stopped")
 
-def onSocketError(ws, error):
+def onMixerSocketError(ws, error):
     logging.critical("socket error %s" % error)
 
-def onSocketClose(ws):
+def onMixerSocketClose(ws):
     print("### closed ###")
 
-def onSocketOpen(ws):
+def onMixerSocketOpen(ws):
     logging.info("connecting to %s" % ws.url)
     def run(*args):
         logging.info("connection established")
@@ -165,17 +205,18 @@ def onSocketOpen(ws):
         print("thread terminating...")
     thread.start_new_thread(run, ())
 
-
 # @TODO: handle connect error
-def createWebSocket(ip):
+async def createMixerWebSocket(ip):
     ws = websocket.WebSocketApp(
         "ws://%s/socket.io/1/websocket" % ip,
-        on_message = onSocketMessage,
-        on_error = onSocketError,
-        on_close = onSocketClose
+        on_open = onMixerSocketOpen,
+        on_message = onMixerSocketMessage,
+        on_error = onMixerSocketError,
+        on_close = onMixerSocketClose
     )
-    ws.on_open = onSocketOpen
-    ws.run_forever()
+    wst = threading.Thread(target=ws.run_forever)
+    wst.daemon = True
+    wst.start()
 
 if __name__ == "__main__":
     main()
